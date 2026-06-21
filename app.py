@@ -3,6 +3,20 @@ import random
 import streamlit as st
 
 from questions import questions
+from questions_v2 import questions_v2
+
+
+QUESTION_POOLS = {
+    "V1": questions,
+    "V2": questions_v2,
+}
+
+
+def get_question_pool(version: str) -> list[dict]:
+    try:
+        return QUESTION_POOLS[version]
+    except KeyError as error:
+        raise ValueError(f"Versione sconosciuta: {version}") from error
 
 
 def build_quiz_questions(source_questions: list[dict], rng=random) -> list[dict]:
@@ -17,8 +31,15 @@ def build_quiz_questions(source_questions: list[dict], rng=random) -> list[dict]
     return quiz_questions
 
 
-def reset_quiz() -> None:
-    st.session_state.quiz_questions = build_quiz_questions(questions)
+def reset_quiz(version: str | None = None) -> None:
+    if version is not None:
+        st.session_state.selected_version = version
+
+    selected_version = st.session_state.get("selected_version")
+    if selected_version is None:
+        return
+
+    st.session_state.quiz_questions = build_quiz_questions(get_question_pool(selected_version))
     st.session_state.current_question = 0
     st.session_state.score = 0
     st.session_state.answered = False
@@ -26,12 +47,51 @@ def reset_quiz() -> None:
     st.session_state.last_was_correct = False
 
 
+def clear_quiz_selection() -> None:
+    for key in (
+        "selected_version",
+        "quiz_questions",
+        "current_question",
+        "score",
+        "answered",
+        "selected_answer",
+        "last_was_correct",
+    ):
+        st.session_state.pop(key, None)
+
+
+def render_version_selector() -> None:
+    st.subheader("Scegli il gruppo di domande")
+    version_label = st.radio(
+        "Versione del quiz",
+        ["Versione 1", "Versione 2"],
+        index=None,
+        horizontal=True,
+    )
+
+    if st.button("Inizia quiz", disabled=version_label is None):
+        selected_version = "V1" if version_label == "Versione 1" else "V2"
+        reset_quiz(selected_version)
+        st.rerun()
+
+
 def main() -> None:
+    st.set_page_config(page_title="Quiz di Ingegneria del Software", page_icon="📚")
+    st.title("Quiz di Ingegneria del Software")
+
+    if "selected_version" not in st.session_state:
+        render_version_selector()
+        st.stop()
+
     if "current_question" not in st.session_state:
         reset_quiz()
 
-    st.set_page_config(page_title="Quiz di Ingegneria del Software", page_icon="📚")
-    st.title("Quiz di Ingegneria del Software")
+    if st.button("Cambia versione"):
+        clear_quiz_selection()
+        st.rerun()
+
+    version_number = st.session_state.selected_version.removeprefix("V")
+    st.caption(f"Versione {version_number}")
 
     total_questions = len(st.session_state.quiz_questions)
     current_index = st.session_state.current_question

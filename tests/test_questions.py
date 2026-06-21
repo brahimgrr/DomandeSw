@@ -13,8 +13,8 @@ REQUIRED_KEYS = {
 }
 
 
-def pdf_page_text(source_file: str, source_page: int) -> str:
-    pdf_path = Path("source") / source_file
+def pdf_page_text(source_file: str, source_page: int, source_directory: str = "source") -> str:
+    pdf_path = Path(source_directory) / source_file
     result = subprocess.run(
         [
             "pdftotext",
